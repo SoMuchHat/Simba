@@ -98,10 +98,6 @@ def Simulation(dict_in):
         logging.info("battery_efficiency found")
         battery_efficiency = currentData["battery_efficiency"]
         
-        assert "motor_torque_constant" in currentData, logging.critical("%s is missing data: motor_torque_constant" % file)
-        logging.info("motor_torque_constant found")
-        motor_torque_constant = currentData["motor_torque_constant"] #torque to current constant of motor. torque/amp
-        
         assert "motor_rpm_constant" in currentData, logging.critical("%s is missing data: motor_rpm_constant" % file)
         logging.info("motor_rpm_constant found")
         motor_rpm_constant = currentData["motor_rpm_constant"] #rpm to voltage dc constant of motor. rpm/volt      
@@ -173,6 +169,10 @@ def Simulation(dict_in):
         assert "corner_radius_lookup" in currentData, logging.critical("%s is missing data: corner_radius_lookup" % file)
         logging.info("corner_radius_lookup found")
         corner_radius_lookup = currentData["corner_radius_lookup"][0]
+        
+        assert "motor_torque_constant_lookup" in currentData, logging.critical("%s is missing data: motor_torque_constant_lookup" % file)
+        logging.info("motor_torque_constant_lookup found")
+        motor_torque_constant_lookup = currentData["motor_torque_constant_lookup"][0]
  
         assert "tyreA" in currentData, logging.critical("%s is missing data: tyreA" % file)
         logging.info("tyreA found")
@@ -193,81 +193,7 @@ def Simulation(dict_in):
         logging.info("top_lean_angle found")
         top_lean_angle = currentData["top_lean_angle"][0]
         
-        #top_lean_angle = 45
         
-        #calc values
-        
-        #simulation calcs
-        steps = int(math.ceil(total_time/step))
-        sqrt2 = np.sqrt(2)     
-        #motor_top_speed = ((wheel_radius*2*np.pi* (top_rpm) / (gearing))/60)
-        #motor_top_force = (top_torque * gearing) / wheel_radius
-        drag_area = frontal_area * air_resistance
-        mass = rider_mass + bike_mass
-        top_torque = top_motor_current * motor_torque_constant
-
-        #Arrays (output)
-        time = np.zeros((steps+1,tests),dtype=float)
-        distance = np.zeros((steps+1,tests),dtype=float)
-        l_speed = np.zeros((steps+1,tests),dtype=float) #look up speed
-        t_speed = np.zeros((steps+1,tests),dtype=float) #speed after compare to top
-        c_force = np.zeros((steps+1,tests),dtype=float) #force before compare
-        p_force = np.zeros((steps+1,tests),dtype=float) #force before power compare        
-        p_speed = np.zeros((steps+1,tests),dtype=float) #speed before power compare
-        speed = np.zeros((steps+1,tests),dtype=float)   #speed after compare (actual)
-        force = np.zeros((steps+1,tests),dtype=float)   #force after compare (actual)
-        c_power = np.zeros((steps+1,tests),dtype=float) #power before compare
-        power = np.zeros((steps+1,tests),dtype=float)
-        energy = np.zeros((steps+1,tests),dtype=float)
-        acceleration = np.zeros((steps+1,tests),dtype=float)
-        drag = np.zeros((steps+1,tests),dtype=float)
-        altitude = np.zeros((steps+1,tests),dtype=float)
-        slope = np.zeros((steps+1,tests),dtype=float)
-        incline = np.zeros((steps+1,tests),dtype=float)
-        rolling = np.zeros((steps+1,tests),dtype=float)
-
-        motor_rpm = np.zeros((steps+1,tests),dtype=float)
-        motor_torque = np.zeros((steps+1,tests),dtype=float)
-        motor_loss = np.zeros((steps+1,tests),dtype=float)
-        motor_controller_loss = np.zeros((steps+1,tests),dtype=float)
-        chain_loss = np.zeros((steps+1,tests),dtype=float)
-        battery_loss = np.zeros((steps+1,tests),dtype=float)
-        total_power = np.zeros((steps+1,tests),dtype=float) #power with losses
-        arms = np.zeros((steps+1,tests),dtype=float)    #amps rms out from motor controller
-        vrms = np.zeros((steps+1,tests),dtype=float)    #voltage rms out from motor controller
-        
-        motor_efficiency = np.zeros((steps+1,tests),dtype=float)
-        motor_controller_efficiency = np.zeros((steps+1,tests),dtype=float)
-        chain_power = np.zeros((steps+1,tests),dtype=float)
-        motor_power = np.zeros((steps+1,tests),dtype=float)
-        motor_controller_power = np.zeros((steps+1,tests),dtype=float)
-        battery_power = np.zeros((steps+1,tests),dtype=float)
-        
-        voltage = np.zeros((steps+1,tests),dtype=float)
-        top_force = np.zeros((steps+1,tests),dtype=float)
-        top_speed = np.zeros((steps+1,tests),dtype=float)
-        top_power = np.zeros((steps+1,tests),dtype=float)
-        amphour = np.zeros((steps+1,tests),dtype=float)
-
-        batt_power_limit = np.zeros((steps+1,tests),dtype=float)
-        motor_power_limit = np.zeros((steps+1,tests),dtype=float)
-        motor_torque_limit = np.zeros((steps+1,tests),dtype=float)
-        motor_rpm_limit = np.zeros((steps+1,tests),dtype=float)
-        
-        motor_energy_in = np.zeros((steps+1,tests),dtype=float)
-        motor_energy_out = np.zeros((steps+1,tests),dtype=float)
-        motor_energy = np.zeros((steps+1,tests),dtype=float)
-        motor_temp = np.zeros((steps+1,tests),dtype=float)
-        mt_speed = np.zeros((steps+1,tests),dtype=float)
-        mt_force = np.zeros((steps+1,tests),dtype=float)
-        mt_power = np.zeros((steps+1,tests),dtype=float)
-        mt_total_power = np.zeros((steps+1,tests),dtype=float)
-        motor_thermal_limit = np.zeros((steps+1,tests),dtype=float)
-        motor_thermal_error = np.zeros((steps+1,tests),dtype=float)
-        
-        wheel_radius = np.zeros((steps+1,tests),dtype=float)
-        lean_angle_limit = np.zeros((steps+1,tests),dtype=float)
-        lateral_acc = np.zeros((steps+1, tests), dtype=float)        
         
         #Lookups
         dist_to_speed_lookup = "Lookup Files\\" + dist_to_speed_lookup
@@ -428,7 +354,104 @@ def Simulation(dict_in):
         x = n[:,0].astype(np.float)
         y = n[:,1].astype(np.float)
         cornerradius = interp1d(x,y)
+        
+        #distance to corner radius lookup
+        motor_torque_constant_lookup = "Lookup Files\\" + motor_torque_constant_lookup
+        try:
+            n = np.loadtxt(motor_torque_constant_lookup,dtype = 'string',delimiter = ',', skiprows = 1)
+            logging.info("%s loaded", motor_torque_constant_lookup)
+            
+        except IOError:
+            logging.critical("Unable to load %s", motor_torque_constant_lookup)
+            msg = datetime.now().strftime('%H:%M:%S') + ": " + "Unable to load " + motor_torque_constant_lookup + " from " + file + ". Make sure the file exists and is not open."
+            wx.CallAfter(pub.sendMessage, "AddStatus", msg)
+            raise Exception("Unable to load \'" + motor_torque_constant_lookup + "\'")
+        n = np.loadtxt(motor_torque_constant_lookup,dtype = 'string',delimiter = ',', skiprows = 1)
+        x = n[:,0].astype(np.float)
+        y = n[:,1].astype(np.float)
+        z = n[:,2].astype(np.float)
+        current_to_mtc = interp1d(y,x)
+        motor_torque_to_arms = interp1d(z,y)
+        arms_to_motor_torque = interp1d(y,z)
 
+
+        #top_lean_angle = 45
+        
+        #calc values
+        
+        #simulation calcs
+        steps = int(math.ceil(total_time/step))
+        sqrt2 = np.sqrt(2)     
+        #motor_top_speed = ((wheel_radius*2*np.pi* (top_rpm) / (gearing))/60)
+        #motor_top_force = (top_torque * gearing) / wheel_radius
+        drag_area = frontal_area * air_resistance
+        mass = rider_mass + bike_mass
+        top_torque = top_torque = np.max(motor_torque_to_arms.x)
+
+        #Arrays (output)
+        time = np.zeros((steps+1,tests),dtype=float)
+        distance = np.zeros((steps+1,tests),dtype=float)
+        l_speed = np.zeros((steps+1,tests),dtype=float) #look up speed
+        t_speed = np.zeros((steps+1,tests),dtype=float) #speed after compare to top
+        c_force = np.zeros((steps+1,tests),dtype=float) #force before compare
+        p_force = np.zeros((steps+1,tests),dtype=float) #force before power compare        
+        p_speed = np.zeros((steps+1,tests),dtype=float) #speed before power compare
+        speed = np.zeros((steps+1,tests),dtype=float)   #speed after compare (actual)
+        force = np.zeros((steps+1,tests),dtype=float)   #force after compare (actual)
+        c_power = np.zeros((steps+1,tests),dtype=float) #power before compare
+        power = np.zeros((steps+1,tests),dtype=float)
+        energy = np.zeros((steps+1,tests),dtype=float)
+        acceleration = np.zeros((steps+1,tests),dtype=float)
+        drag = np.zeros((steps+1,tests),dtype=float)
+        altitude = np.zeros((steps+1,tests),dtype=float)
+        slope = np.zeros((steps+1,tests),dtype=float)
+        incline = np.zeros((steps+1,tests),dtype=float)
+        rolling = np.zeros((steps+1,tests),dtype=float)
+
+        motor_rpm = np.zeros((steps+1,tests),dtype=float)
+        motor_torque = np.zeros((steps+1,tests),dtype=float)
+        motor_loss = np.zeros((steps+1,tests),dtype=float)
+        motor_controller_loss = np.zeros((steps+1,tests),dtype=float)
+        chain_loss = np.zeros((steps+1,tests),dtype=float)
+        battery_loss = np.zeros((steps+1,tests),dtype=float)
+        total_power = np.zeros((steps+1,tests),dtype=float) #power with losses
+        arms = np.zeros((steps+1,tests),dtype=float)    #amps rms out from motor controller
+        vrms = np.zeros((steps+1,tests),dtype=float)    #voltage rms out from motor controller
+        
+        motor_efficiency = np.zeros((steps+1,tests),dtype=float)
+        motor_controller_efficiency = np.zeros((steps+1,tests),dtype=float)
+        chain_power = np.zeros((steps+1,tests),dtype=float)
+        motor_power = np.zeros((steps+1,tests),dtype=float)
+        motor_controller_power = np.zeros((steps+1,tests),dtype=float)
+        battery_power = np.zeros((steps+1,tests),dtype=float)
+        
+        voltage = np.zeros((steps+1,tests),dtype=float)
+        top_force = np.zeros((steps+1,tests),dtype=float)
+        top_speed = np.zeros((steps+1,tests),dtype=float)
+        top_power = np.zeros((steps+1,tests),dtype=float)
+        amphour = np.zeros((steps+1,tests),dtype=float)
+
+        batt_power_limit = np.zeros((steps+1,tests),dtype=float)
+        motor_power_limit = np.zeros((steps+1,tests),dtype=float)
+        motor_torque_limit = np.zeros((steps+1,tests),dtype=float)
+        motor_rpm_limit = np.zeros((steps+1,tests),dtype=float)
+        
+        motor_energy_in = np.zeros((steps+1,tests),dtype=float)
+        motor_energy_out = np.zeros((steps+1,tests),dtype=float)
+        motor_energy = np.zeros((steps+1,tests),dtype=float)
+        motor_temp = np.zeros((steps+1,tests),dtype=float)
+        mt_speed = np.zeros((steps+1,tests),dtype=float)
+        mt_force = np.zeros((steps+1,tests),dtype=float)
+        mt_power = np.zeros((steps+1,tests),dtype=float)
+        mt_total_power = np.zeros((steps+1,tests),dtype=float)
+        motor_thermal_limit = np.zeros((steps+1,tests),dtype=float)
+        motor_thermal_error = np.zeros((steps+1,tests),dtype=float)
+        
+        wheel_radius = np.zeros((steps+1,tests),dtype=float)
+        lean_angle_limit = np.zeros((steps+1,tests),dtype=float)
+        lateral_acc = np.zeros((steps+1, tests), dtype=float)        
+        
+        
         message = '';        
         
         #Make sure parameters don't extend lookups
@@ -456,7 +479,8 @@ def Simulation(dict_in):
         (x,y) = motor_eff_grid.shape
         if y-1 <  top_torque:
             top_torque = y-1
-            top_motor_current = (y-1)/motor_torque_constant
+            top_motor_current = motor_torque_to_arms((y-1))
+            
             message = datetime.now().strftime('%H:%M:%S') + ": "
             message += 'WARNING: top_torque greater than motor efficiency look up --- '
             message += 'top_torque changed to ' + repr(top_torque) + ', top_motor_current changed to ' + repr(top_motor_current)
@@ -471,9 +495,9 @@ def Simulation(dict_in):
             wx.CallAfter(pub.sendMessage, "AddStatus", message)
 
         (x,y) = motor_controller_eff_grid.shape
-        if y-1 <  top_torque/motor_torque_constant:
-            top_torque = (y-1) * motor_torque_constant
+        if y-1 <  top_motor_current:
             top_motor_current = y-1
+            top_torque = arms_to_motor_torque((y-1))
             message = datetime.now().strftime('%H:%M:%S') + ": "
             message += 'WARNING: possible arms (from top_torque and motor torque constant) is greater than motor controller efficiency look up --- '
             message += 'top_torque changed to ' + repr(top_torque) + ' for file ' + file
@@ -547,7 +571,7 @@ def Simulation(dict_in):
         def Efficiency(s,f,p,n):
             motor_rpm[n+1] = ((s)/(wheel_radius[n+1]*2*np.pi)) * gearing * 60
             motor_torque[n+1] = (f * wheel_radius[n+1])/gearing
-            arms[n+1] = motor_torque[n+1]/motor_torque_constant
+            arms[n+1] = motor_torque_to_arms(motor_torque[n+1])
             vrms[n+1] = motor_rpm[n+1]/(motor_rpm_constant)*(1/(sqrt2))  
             
             motor_efficiency[n+1] = motor_eff_grid[np.int(np.around(motor_rpm[n+1]))][np.int(np.around(motor_torque[n+1]))]
@@ -570,7 +594,7 @@ def Simulation(dict_in):
              
         #Top force (allows for expandsion to more than one top forces)
         def Top_force(n):
-            return ((throttlemap(motor_rpm[n]) * top_motor_current * motor_torque_constant) * gearing) / wheel_radius[n+1]
+            return (arms_to_motor_torque(top_motor_current*throttlemap(motor_rpm[n])) * gearing) / wheel_radius[n+1]
                 
         #Top Speed(allows for expandsion to one top speeds)
         def Top_speed(n):

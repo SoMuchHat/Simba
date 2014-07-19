@@ -70,7 +70,7 @@ throttlemap_lookup = 'throttle.csv'
 lean_angle_lookup = 'lean_IOM_video_data.csv'
 corner_radius_lookup = 'pikespeakradius.csv'
 chain_eff_lookup = 'chain_eff_30kW.csv'
-mtc_current_lookup = 'emrax_mtc_lookup.csv'
+mtc_lookup = 'emrax_mtc_lookup.csv'
 
 
 #Lookups
@@ -141,7 +141,7 @@ chain_efficiency = interp1d(x,y)
 
 #motor_torque_constant_lookup
 #motor torque constant to current(A) lookup
-n = np.loadtxt(mtc_current_lookup,dtype = 'string',delimiter = ',', skiprows = 1)
+n = np.loadtxt(mtc_lookup,dtype = 'string',delimiter = ',', skiprows = 1)
 x = n[:,0].astype(np.float)
 y = n[:,1].astype(np.float)
 z = n[:,2].astype(np.float)
