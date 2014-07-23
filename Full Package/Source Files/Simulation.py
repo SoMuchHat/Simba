@@ -452,9 +452,6 @@ def Simulation(dict_in):
             wx.CallAfter(pub.sendMessage, "AddStatus", message) 
 
         if np.max(distancetoaltitude_lookup.x) < max_distance_travel:
-            print max_distance_travel
-            print np.max(distancetoaltitude_lookup.x)
-            print np.max(distancetospeed_lookup.x)
             max_distance_travel =  np.max(distancetoaltitude_lookup.x)  
             message = datetime.now().strftime('%H:%M:%S') + ": "
             message += 'WARNING: max_distance_travel greater than altitude to distance look up --- '
@@ -593,7 +590,7 @@ def Simulation(dict_in):
                 
         #Top Speed(allows for expandsion to one top speeds)
         def Top_speed(n):
-            return ((wheel_radius[n+1]*2*np.pi* (top_rpm) / (gearing))/60)
+            return max([0,((wheel_radius[n+1]*2*np.pi* (top_rpm) / (gearing))/60)])
                     
         #Top Power 
         #check which has lower top power battery or motor
@@ -623,7 +620,8 @@ def Simulation(dict_in):
         def Motor_Thermal_solve(s,n):
             f = Force(s,n)
             p = Power(s,n)
-            Efficiency(s,f,p,n)
+            if Efficiency(s,f,p,n) == float('nan'):
+                return max_motor_temp
             Motor_Thermal(n)
             motor_thermal_error[n+1] = abs(motor_temp[n+1] - max_motor_temp)
             return motor_thermal_error[n+1]   
@@ -648,7 +646,7 @@ def Simulation(dict_in):
             for n in range(steps):
                 time[n+1] = time[n] + step                  #increase time step
                 distance[n+1] = distance[n] + speed[n]*step #move bike forward 
-                if (distance[n+1] > max_distance_travel):
+                if (distance[n+1] > max_distance_travel) or speed[n] == 0:
                     return n                                #stop if cross finish line
                     
                 wheel_radius[n+1] = Wheel_Radius(lean_angle_lookup(distance[n+1]), n)
@@ -656,7 +654,6 @@ def Simulation(dict_in):
                 top_force[n+1] = Top_force(n)
                 top_speed[n+1] = Top_speed(n)
                 top_power[n+1] = Top_power(n)
-                
 
                 l_speed[n+1] = distancetospeed_lookup(distance[n+1])
                 
@@ -668,10 +665,9 @@ def Simulation(dict_in):
                     
                 
                 c_force[n+1] = Force(t_speed[n+1],n)
-                
                 if c_force[n+1] > top_force[n+1]:           #Limit speed to top force
                     motor_torque_limit[n+1] = 1
-                    p_speed[n+1] = (opt.fsolve(force_solve,t_speed[n+1],n))[0]
+                    p_speed[n+1] = max([0,(opt.fsolve(force_solve,t_speed[n+1],n))[0]])
                     p_force[n+1] = Force(p_speed[n+1],n)
                 else:
                     p_speed[n+1] = t_speed[n+1]
@@ -684,7 +680,7 @@ def Simulation(dict_in):
                         motor_power_limit[n+1] = 1
                     if is_batt_power:
                         batt_power_limit[n+1] = 1
-                    mt_speed[n+1] = (opt.fsolve(power_solve,p_speed[n+1],n))[0]
+                    mt_speed[n+1] = max([0,(opt.fsolve(power_solve,p_speed[n+1],n))[0]])
                     mt_force[n+1] = Force(mt_speed[n+1],n)
                     mt_power[n+1] = Power(mt_speed[n+1],n)
                 else:
@@ -698,7 +694,7 @@ def Simulation(dict_in):
                 Motor_Thermal(n)                            #Limit speed to thermal limtis
                 if motor_temp[n+1] > max_motor_temp:
                     bnds = [(0,mt_speed[n+1])]
-                    speed[n+1] = (opt.fmin_tnc(Motor_Thermal_solve,mt_speed[n+1]-1,args = (n,),bounds=bnds, approx_grad = True, messages = 0))[0]
+                    speed[n+1] = (opt.fmin_tnc(Motor_Thermal_solve,mt_speed[n+1],args = (n,),bounds=bnds, approx_grad = True,messages = 0))[0]
                     force[n+1] = Force(speed[n+1],n)
                     power[n+1] = Power(speed[n+1],n)   
                     total_power[n+1] = Efficiency(speed[n+1],force[n+1],power[n+1],n)
