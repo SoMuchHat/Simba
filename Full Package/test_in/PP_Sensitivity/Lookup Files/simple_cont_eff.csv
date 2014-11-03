@@ -1,0 +1,5 @@
+out_voltage(V rms),out_current(A rms),Efficiency 
+0,0,0.93
+0,575,0.93
+300,0,0.93
+300,575,0.93
