@@ -509,8 +509,8 @@ def Simulation(dict_in):
             warnings.append(message)
             wx.CallAfter(pub.sendMessage, "AddStatus", message)
     
-        if x-1 <  (top_rpm/(motor_rpm_constant)*(1/(sqrt2))) :
-            top_rpm = (x-1)*(motor_rpm_constant)*(1/(sqrt2)) 
+        if x-1 <  ((top_rpm/motor_rpm_constant)*(1/(sqrt2))):
+            top_rpm = (x-1)*(sqrt2)*(motor_rpm_constant)
             message = datetime.now().strftime('%H:%M:%S') + ": "
             message += 'WARNING: possible Vrms (from top_rpm and motor rpm constant) is greater than motor controller efficiency look up --- '
             message += 'top_rpm changed to ' + repr(top_rpm) + ' for file ' + file

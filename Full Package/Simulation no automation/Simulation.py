@@ -280,8 +280,8 @@ if y-1 <  top_torque/motor_torque_constant:
     print 'possible arms (from top motor current and motor torque constant) is greater than motor controller efficiency look up'
     print 'top_motor_current changed to ' + repr(top_motor_current)
 
-if x-1 <  (top_rpm/(motor_rpm_constant)*(1/(sqrt2))) :
-    top_rpm = (x-1)*(motor_rpm_constant)*(1/(sqrt2)) 
+if x-1 <  ((top_rpm/motor_rpm_constant)*(1/(sqrt2))):
+    top_rpm = (x-1)*(sqrt2)*(motor_rpm_constant)
     print 'possible Vrms (from top_rpm and motor rpm constant) is greater than motor controller efficiency look up'
     print 'top_rpm changed to ' + repr(top_rpm)
     
