@@ -351,7 +351,7 @@ def Top_speed(n):
 def Top_power(n):
     global is_motor_power
     global is_batt_power
-    batt_top_power = voltage[n+1] * batt_max_current
+    batt_top_power = (voltage[n+1]*(1/sqrt2)) * (batt_max_current*(1/math.sqrt(3/2)))
     if motor_top_power < batt_top_power:
         is_motor_power = True 
         is_batt_power = False
